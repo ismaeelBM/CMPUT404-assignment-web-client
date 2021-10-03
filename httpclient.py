@@ -33,21 +33,45 @@ class HTTPResponse(object):
         self.body = body
 
 class HTTPClient(object):
-    #def get_host_port(self,url):
+    def get_host_port_path(self,url):
+        host = url
+        port = 80
+        path = "/"
+        if url.startswith("http"):
+            if "://" in url:
+                host = url.split("://")[1]
+        
+        if "/" in host:
+            (host, path) = host.split("/", 1)
+
+        if ":" in host:
+            try:
+                port = int(host.split(":")[-1])
+            except:
+                port = 80
+
+        return (host, port, path)
+
 
     def connect(self, host, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((host, port))
+        print("Connected to", host, port)
         return None
 
     def get_code(self, data):
-        return None
+        try:
+            return int(data.split(" ")[1])
+        except:
+            return 404
 
     def get_headers(self,data):
-        return None
+        header = data.split("\r\n\r\n")[0]
+        return header
 
     def get_body(self, data):
-        return None
+        body = data.split("\r\n\r\n")[-1]
+        return body
     
     def sendall(self, data):
         self.socket.sendall(data.encode('utf-8'))
@@ -70,6 +94,21 @@ class HTTPClient(object):
     def GET(self, url, args=None):
         code = 500
         body = ""
+        (host, port, path) = self.get_host_port_path(url)
+        payload = f'GET {path} HTTP/1.0\r\nHost: {host}\r\n\r\n'
+
+        self.connect(host, port)
+        self.sendall(payload)
+        self.socket.shutdown(socket.SHUT_WR)
+
+        data = self.recvall(self.socket)
+
+        header = self.get_headers(data)
+        body = self.get_headers(data)
+        code = self.get_code(header)
+
+        print(data)
+
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
